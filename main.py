@@ -39,6 +39,10 @@ MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
 MAX_HISTORY_MESSAGES = int(os.getenv("MAX_HISTORY_MESSAGES", "30"))
 COMMAND_TIMEOUT = int(os.getenv("COMMAND_TIMEOUT", "30"))
+# Budget d'outils par message utilisateur (tours de boucle d'agent).
+# 12 tours : assez pour une installation multi-étapes, pas assez pour boucler
+# indéfiniment — chaque tour reste plafonné à 90 s côté API.
+MAX_TOOL_ROUNDS = int(os.getenv("MAX_TOOL_ROUNDS", "12"))
 
 SYSTEM_PROMPT = (
     "Tu es Pi Agent, l'assistant d'administration du VPS rennesdev.fr. "
@@ -60,6 +64,21 @@ ALLOWED_COMMANDS = [
 # NOTE sécurité : docker, systemctl, curl, service, nginx, caddy, ufw
 # retirés de la whitelist (pouvoir quasi-root ou SSRF). À réintroduire
 # un par un avec des sous-commandes précises si besoin.
+
+# Commandes étendues par PRÉFIXE exact : plus fines que la whitelist ci-dessus.
+# - git clone : limité aux repos GitHub personnels (pas de clone arbitraire) ;
+# - git -C pi-harness : status/log/diff/pull sur le projet pi-harness ;
+# - python3 -m compileall : contrôle de syntaxe uniquement, pas d'exécution ;
+# - python3 pi-harness/harness.py : lancement du harness, qui a SES propres
+#   gardes-fous internes (whitelist, chemins bloqués, budget, confirmations).
+# Les FORBIDDEN_PATTERNS ci-dessous s'appliquent AUSSI à ces préfixes.
+PREFIX_COMMANDS = [
+    'git clone https://github.com/Ruaudel-Emmanuel/',
+    'git -C pi-harness',
+    'python3 -m compileall',
+    'python3 -m py_compile',
+    'python3 pi-harness/harness.py',
+]
 
 FORBIDDEN_PATTERNS = [
     r'rm\s+', r'mv\s+', r'chmod\s+', r'chown\s+', r'dd\s+',
@@ -173,8 +192,15 @@ def get_all_conversations() -> List[Dict[str, Any]]:
 
 # --- Validation et exécution des commandes ----------------------------------
 def is_command_allowed(command: str) -> bool:
+    command = command.strip()
     tokens = command.split()
-    if not tokens or tokens[0] not in ALLOWED_COMMANDS:
+    if not tokens:
+        return False
+    # Autorisation : whitelist de base OU préfixe étendu exact.
+    allowed = tokens[0] in ALLOWED_COMMANDS or any(
+        command.startswith(prefix) for prefix in PREFIX_COMMANDS
+    )
+    if not allowed:
         return False
     for pattern in FORBIDDEN_PATTERNS:
         if re.search(pattern, command, re.IGNORECASE):
@@ -209,8 +235,12 @@ TOOLS = [{
     "type": "function",
     "function": {
         "name": "execute_command",
-        "description": "Exécute une commande autorisée sur le VPS rennesdev.fr "
-                       "(liste blanche : " + ", ".join(ALLOWED_COMMANDS) + ").",
+        "description": "Exécute une commande autorisée sur le VPS rennesdev.fr. "
+                       "Whitelist : " + ", ".join(ALLOWED_COMMANDS) + ". "
+                       "Préfixes étendus : " + ", ".join(PREFIX_COMMANDS) + ". "
+                       "Exemples : 'df -h', 'git -C pi-harness pull', "
+                       "'python3 pi-harness/harness.py --ask \"uptime ?\"'. "
+                       "Pas de pipes, pas de '&&', pas de substitution de variables.",
         "parameters": {
             "type": "object",
             "properties": {"command": {"type": "string", "description": "La commande à exécuter, ex: 'df -h'"}},
@@ -234,7 +264,7 @@ def ask_mistral(conv_id: str, user_message: str) -> str:
     messages.append({"role": "user", "content": user_message})
 
     with httpx.Client(timeout=90) as client:
-        for _ in range(4):  # max 4 tours d'outils par message
+        for _ in range(MAX_TOOL_ROUNDS):  # budget d'outils par message (défaut : 12)
             resp = client.post(
                 "https://api.mistral.ai/v1/chat/completions",
                 headers={"Authorization": "Bearer " + MISTRAL_API_KEY},
