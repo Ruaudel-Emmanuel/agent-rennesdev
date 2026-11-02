@@ -75,9 +75,11 @@ ALLOWED_COMMANDS = [
 PREFIX_COMMANDS = [
     'git clone https://github.com/Ruaudel-Emmanuel/',
     'git -C pi-harness',
+    'git -C /home/ubuntu/pi-harness',
     'python3 -m compileall',
     'python3 -m py_compile',
     'python3 pi-harness/harness.py',
+    'python3 /home/ubuntu/pi-harness/harness.py',
 ]
 
 FORBIDDEN_PATTERNS = [
@@ -238,13 +240,16 @@ TOOLS = [{
         "name": "execute_command",
         "description": "Exécute une commande autorisée sur le VPS rennesdev.fr. "
                        "Whitelist : " + ", ".join(ALLOWED_COMMANDS) + ". "
-                       "Préfixes étendus : " + ", ".join(PREFIX_COMMANDS) + ". "
-                       "Le répertoire de travail est /home/ubuntu : utilise des chemins "
-                       "relatifs (ex: 'ls pi-harness') ou absolus (ex: 'ls /home/ubuntu'), "
-                       "le tilde ~ fonctionne aussi mais préfère les chemins relatifs. "
-                       "Exemples : 'df -h', 'git -C pi-harness pull', "
+                       "Préfixes étendus (relatifs ou absolus) : git clone de repos "
+                       "Ruaudel-Emmanuel, git -C pi-harness, python3 -m compileall, "
+                       "python3 -m py_compile, python3 pi-harness/harness.py. "
+                       "Commandes copiables telles quelles : "
+                       "'git -C pi-harness status', "
+                       "'git -C pi-harness pull', "
+                       "'python3 -m compileall pi-harness', "
                        "'python3 pi-harness/harness.py --ask \"uptime ?\"'. "
-                       "Pas de pipes, pas de '&&', pas de substitution de variables.",
+                       "Pas de pipes, pas de '&&', pas de substitution de variables, "
+                       "pas de tilde ~ (chemins relatifs ou absolus uniquement).",
         "parameters": {
             "type": "object",
             "properties": {"command": {"type": "string", "description": "La commande à exécuter, ex: 'df -h'"}},
