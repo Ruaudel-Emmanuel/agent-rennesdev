@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent RennesDev - Terminal Web</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-dark: #1565c0;
+            --secondary: #424242;
+            --background: #f8f9fa;
+            --surface: #ffffff;
+            --border: #e0e0e0;
+            --user-color: #e3f2fd;
+            --agent-color: #f8f9fa;
+            --success: #4caf50;
+            --error: #f44336;
+            --warning: #ff9800;
+            --text-primary: #212121;
+            --text-secondary: #757575;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .new-conversation-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .new-conversation-btn:hover {
+            background: var(--primary-dark);
+        }
+        
+        .conversation-selector {
+            position: relative;
+        }
+        
+        .conversation-list-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .conversation-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .conversation-list.show {
+            display: block;
+        }
+        
+        .conversation-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        
+        .conversation-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .conversation-item:last-child {
+            border-bottom: none;
+        }
+        
+        .conversation-item .conv-title {
+            font-weight: 600;
+            font-size: 0.9em;
+            display: block;
+            margin-bottom: 2px;
+        }
+        
+        .conversation-item .conv-preview {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .header-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            background: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        /* Main container */
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 20px;
+        }
+        
+        /* Chat area */
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--surface);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            min-height: 300px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 85%;
+            line-height: 1.5;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .user-message {
+            background: var(--user-color);
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .agent-message {
+            background: var(--agent-color);
+            margin-right: auto;
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-header {
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.85em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .user-header {
+            color: var(--primary);
+        }
+        
+        .agent-header {
+            color: var(--secondary);
+        }
+        
+        .timestamp {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            font-weight: normal;
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+        }
+        
+        .message-content code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .message-content pre {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            border-left: 3px solid var(--primary);
+        }
+        
+        /* Trace des actions executees par l'agent (suivi type Vibe) */
+        .action-trace {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            background: #f5f5f5;
+            border-left: 3px solid var(--primary);
+            padding: 6px 10px;
+            margin: -8px 0 15px 10px;
+            border-radius: 0 6px 6px 0;
+            max-width: 75%;
+            font-family: 'Courier New', monospace;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .action-trace code {
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+        }
+        
+        .action-trace.refused {
+            border-left-color: var(--error);
+        }
+        
+        /* Input area */
+        .input-area {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+        }
+        
+        #message {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            resize: none;
+            min-height: 50px;
+            max-height: 200px;
+            font-family: inherit;
+        }
+        
+        #message:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s, transform 0.1s;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        
+        button:hover {
+            background: var(--primary-dark);
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        /* File upload */
+        #file-upload {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        #file-upload input[type="file"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            flex: 1;
+        }
+        
+        .status {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        
+        /* Welcome message */
+        .welcome-message {
+            text-align: center;
+            color: var(--text-secondary);
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 8px 10px;
+            }
+            
+            .header-title {
+                font-size: 1em;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            .input-area {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+            
+            .conversation-list {
+                width: 250px;
+            }
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #b0b0b0;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <button class="new-conversation-btn" onclick="newConversation()">
+                <span>💬</span>
+                <span>Nouvelle discussion</span>
+            </button>
+            <div class="conversation-selector">
+                <button class="conversation-list-btn" onclick="toggleConversationList()">
+                    <span>📜</span>
+                    <span>Historique</span>
+                </button>
+                <div class="conversation-list" id="conversationList"></div>
+            </div>
+        </div>
+        <div class="header-title">🤖 Agent RennesDev</div>
+        <div class="header-right">
+            <button class="conversation-list-btn" onclick="resetToken()" title="Changer la clé d'accès">🔑</button>
+            <span class="status-indicator"></span>
+            <span>Connecté</span>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="chat"></div>
+        <div class="input-area">
+            <textarea 
+                id="message" 
+                placeholder="Tape ton message ici... (appuie sur Entrée pour envoyer)" 
+                autocomplete="off"
+                rows="1"
+            ></textarea>
+            <button onclick="sendMessage()" id="send-button">Envoyer</button>
+        </div>
+        <div id="file-upload">
+            <input type="file" id="file" accept=".txt,.md,.json,.yaml,.yml,.sh,.py,.log,.csv">
+            <button onclick="uploadFile()">📁 Uploader</button>
+        </div>
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const chat = document.getElementById('chat');
+        const messageInput = document.getElementById('message');
+        const sendButton = document.getElementById('send-button');
+        const statusDiv = document.getElementById('status');
+        const conversationList = document.getElementById('conversationList');
+        
+        let currentConversationId = null;
+        
+        // --- Authentification : token AGENT_AUTH_TOKEN (en-tête X-Agent-Token) ---
+        function getToken() {
+            let token = localStorage.getItem('agent_token');
+            if (!token) {
+                token = window.prompt("Clé d'accès à l'agent (AGENT_AUTH_TOKEN) :");
+                if (token) localStorage.setItem('agent_token', token);
+            }
+            return token || '';
+        }
+        
+        function resetToken() {
+            localStorage.removeItem('agent_token');
+            getToken();
+            setStatus("Clé mise à jour. Recharge la page si un message d'erreur persiste.");
+        }
+        
+        // Wrapper fetch : injecte le token sur chaque appel et gère les 401
+        function apiFetch(url, options, retried) {
+            options = options || {};
+            options.headers = Object.assign({}, options.headers || {}, { 'X-Agent-Token': getToken() });
+            return fetch(url, options).then(function(response) {
+                if (response.status === 401 && !retried) {
+                    localStorage.removeItem('agent_token');
+                    const token = window.prompt("Clé d'accès invalide. Retape-la :");
+                    if (token) {
+                        localStorage.setItem('agent_token', token);
+                        return apiFetch(url, options, true);
+                    }
+                }
+                return response;
+            });
+        }
+        
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+        
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('fr-FR', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                day: '2-digit',
+                month: '2-digit'
+            });
+        }
+        
+        function addMessage(sender, text, isUser = false, timestamp = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'agent-message'}`;
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = `message-header ${isUser ? 'user-header' : 'agent-header'}`;
+            
+            const senderSpan = document.createElement('span');
+            senderSpan.textContent = sender;
+            
+            if (timestamp) {
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'timestamp';
+                timeSpan.textContent = formatTimestamp(timestamp);
+                headerDiv.appendChild(senderSpan);
+                headerDiv.appendChild(timeSpan);
+            } else {
+                headerDiv.appendChild(senderSpan);
+            }
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            
+            messageDiv.appendChild(headerDiv);
+            messageDiv.appendChild(contentDiv);
+            chat.appendChild(messageDiv);
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        // Affiche une action exécutée par l'agent (trace type Vibe)
+        function addAction(msg) {
+            const div = document.createElement('div');
+            div.className = 'action-trace' + (msg.status === 'refused' ? ' refused' : '');
+            const icon = msg.status === 'done' ? '✅' : '⛔';
+            const label = document.createElement('span');
+            label.textContent = icon + ' Action ';
+            const code = document.createElement('code');
+            code.textContent = msg.action;
+            const result = document.createElement('span');
+            result.textContent = ' — ' + (msg.result || '').split('\n')[0].slice(0, 120);
+            div.appendChild(label);
+            div.appendChild(code);
+            div.appendChild(result);
+            div.title = msg.result || '';
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        function renderMessages(messages) {
+            messages.forEach(msg => {
+                if (msg.role === 'action') {
+                    addAction(msg);
+                } else {
+                    addMessage(
+                        msg.role === 'user' ? 'Toi' : 'Agent',
+                        msg.content,
+                        msg.role === 'user',
+                        msg.timestamp
+                    );
+                }
+            });
+        }
+        
+        function setStatus(text) {
+            statusDiv.textContent = text;
+        }
+        
+        function toggleConversationList() {
+            conversationList.classList.toggle('show');
+            if (conversationList.classList.contains('show')) {
+                loadConversationList();
+            }
+        }
+        
+        function loadConversationList() {
+            apiFetch('/list_conversations')
+                .then(response => response.json())
+                .then(data => {
+                    conversationList.innerHTML = '';
+                    if (!data.conversations || data.conversations.length === 0) {
+                        const item = document.createElement('div');
+                        item.className = 'conversation-item';
+                        item.textContent = 'Aucune conversation précédente';
+                        conversationList.appendChild(item);
+                        return;
+                    }
+                    data.conversations.forEach(conv => {
+                        const item = document.createElement('div');
+                        item.className = 'conversation-item';
+                        const title = document.createElement('span');
+                        title.className = 'conv-title';
+                        title.textContent = conv.title || new Date(conv.started_at).toLocaleString('fr-FR');
+                        const preview = document.createElement('span');
+                        preview.className = 'conv-preview';
+                        preview.textContent = conv.last_message || '';
+                        item.appendChild(title);
+                        item.appendChild(preview);
+                        item.onclick = () => loadConversation(conv.id);
+                        conversationList.appendChild(item);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                });
+        }
+        
+        function loadConversation(convId) {
+            apiFetch(`/load_conversation/${convId}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        chat.innerHTML = '';
+                        renderMessages(data.messages || []);
+                        conversationList.classList.remove('show');
+                        setStatus('Conversation chargée');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    setStatus('Erreur lors du chargement');
+                });
+        }
+        
+        function newConversation() {
+            apiFetch('/new_conversation', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        chat.innerHTML = '';
+                        addMessage("Agent", "Nouvelle conversation démarrée ! Comment puis-je t'aider ? 😊", false);
+                        setStatus('Nouvelle conversation');
+                        conversationList.classList.remove('show');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                });
+        }
+        
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            const timestamp = new Date().toISOString();
+            addMessage("Toi", message, true, timestamp);
+            messageInput.value = "";
+            messageInput.style.height = 'auto';
+            sendButton.disabled = true;
+            setStatus("En cours...");
+
+            apiFetch('/send_message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                addMessage("Agent", data.response, false, timestamp);
+                setStatus("Prêt");
+            })
+            .catch(error => {
+                addMessage("Agent", "Erreur : " + error.message, false, timestamp);
+                setStatus("Erreur de connexion");
+            })
+            .finally(() => {
+                sendButton.disabled = false;
+                messageInput.focus();
+            });
+        }
+        
+        function uploadFile() {
+            const fileInput = document.getElementById('file');
+            const file = fileInput.files[0];
+            if (!file) {
+                setStatus("Aucun fichier sélectionné.");
+                return;
+            }
+
+            setStatus(`Upload de ${file.name} en cours...`);
+            const formData = new FormData();
+            formData.append('file', file);
+
+            apiFetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const timestamp = new Date().toISOString();
+                addMessage("Toi", `[Upload] ${data.filename || file.name}`, true, timestamp);
+                addMessage("Agent", data.message, false, timestamp);
+                setStatus("Prêt");
+                fileInput.value = "";
+            })
+            .catch(error => {
+                addMessage("Agent", "Erreur lors de l'upload : " + error.message, false);
+                setStatus("Erreur d'upload");
+            });
+        }
+        
+        // Permettre d'envoyer avec la touche Entrée (sans Shift)
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Fermer la liste des conversations en cliquant à l'extérieur
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.conversation-selector')) {
+                conversationList.classList.remove('show');
+            }
+        });
+        
+        // Charger l'historique au démarrage
+        apiFetch('/list_conversations')
+            .then(response => {
+                if (!response.ok) return null;
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.conversations && data.conversations.length > 0) {
+                    const lastConv = data.conversations[0];
+                    return apiFetch(`/load_conversation/${lastConv.id}`, { method: 'POST' })
+                        .then(r => r.ok ? r.json() : null);
+                } else {
+                    addMessage("Agent", "Bonjour ! Je suis Pi Agent, l'assistant de ton VPS rennesdev.fr. 🚀\n\nTu peux me parler en langage naturel : je peux exécuter des commandes autorisées, lire des fichiers, analyser des logs...\n\nÀ toi de jouer !", false);
+                    return null;
+                }
+            })
+            .then(data => {
+                if (data && data.status === 'ok') {
+                    renderMessages(data.messages || []);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                addMessage("Agent", "Bonjour ! Je suis Pi Agent sur le VPS rennesdev.fr. 🚀", false);
+            });
+    </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" nonce="aH/Phjo91VIOOwJWgEEsqg==" data-cf-beacon='{"version":"2024.11.0","token":"36b4216ae2dc4d5488c249161e71fe1e","spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
