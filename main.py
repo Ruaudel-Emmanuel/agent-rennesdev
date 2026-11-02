@@ -213,9 +213,10 @@ def is_command_allowed(command: str) -> bool:
 
 def execute_command(command: str) -> str:
     """Exécute une commande de la whitelist. shlex + liste d'arguments :
-    aucune injection possible via ; && || $(...) ou backticks."""
+    aucune injection possible via ; && || $(...) ou backticks.
+    Le tilde ~ est développé manuellement (pas de shell)."""
     try:
-        args = shlex.split(command)
+        args = [os.path.expanduser(a) for a in shlex.split(command)]
         if not args:
             return "Erreur : commande vide."
         result = subprocess.run(
@@ -238,6 +239,9 @@ TOOLS = [{
         "description": "Exécute une commande autorisée sur le VPS rennesdev.fr. "
                        "Whitelist : " + ", ".join(ALLOWED_COMMANDS) + ". "
                        "Préfixes étendus : " + ", ".join(PREFIX_COMMANDS) + ". "
+                       "Le répertoire de travail est /home/ubuntu : utilise des chemins "
+                       "relatifs (ex: 'ls pi-harness') ou absolus (ex: 'ls /home/ubuntu'), "
+                       "le tilde ~ fonctionne aussi mais préfère les chemins relatifs. "
                        "Exemples : 'df -h', 'git -C pi-harness pull', "
                        "'python3 pi-harness/harness.py --ask \"uptime ?\"'. "
                        "Pas de pipes, pas de '&&', pas de substitution de variables.",
